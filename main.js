@@ -24,18 +24,23 @@ function setupSpeechRecognition() {
             if (event.results[i].isFinal) {
                 transcript += event.results[i][0].transcript + ' ';
                 console.log('Transcript so far:', transcript);
+                // Update the transcript display in real-time
+                document.getElementById('transcript').innerHTML = 'Transcript: ' + transcript;
             }
         }
     };
     
     recognitionInstance.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
+        // Hide recording indicator when error occurs
+        document.querySelector('.loader-container').style.display = 'none';
+        document.getElementById('status').textContent = 'Error: ' + event.error;
     };
     
     return recognitionInstance;
 }
 
-onEvent('startListening',"click", () => {
+document.getElementById('startListening').addEventListener('click', () => {
     //start listening to voice
     if (!recognition) {
         recognition = setupSpeechRecognition();
@@ -44,6 +49,11 @@ onEvent('startListening',"click", () => {
     
     // Clear previous transcript
     transcript = '';
+    document.getElementById('transcript').innerHTML = 'Transcript: ';
+    
+    // Show recording indicator
+    document.querySelector('.loader-container').style.display = 'flex';
+    document.getElementById('status').textContent = 'Recording...';
     
     // Start recognition
     try {
@@ -51,18 +61,27 @@ onEvent('startListening',"click", () => {
         console.log('Speech recognition started');
     } catch (error) {
         console.error('Error starting speech recognition:', error);
+        // Hide recording indicator if start fails
+        document.querySelector('.loader-container').style.display = 'none';
+        document.getElementById('status').textContent = 'Error starting recording';
     }
     
     console.log('Start listening button clicked');
 });
 
-onEvent('stopListening', "click", () => {
+document.getElementById('stopListening').addEventListener('click', () => {
     //stop listening to voice
     if (recognition) {
         recognition.stop();
         console.log('Speech recognition stopped');
         console.log('Final transcript:', transcript);
         
+        // Hide recording indicator
+        document.querySelector('.loader-container').style.display = 'none';
+        document.getElementById('status').textContent = 'Ready to listen';
+        
+        //display the transcript in the element in the html with id = "transcript"
+        document.getElementById('transcript').innerHTML = 'Transcript: ' + transcript;
         // Here you would send the transcript to your API
         // sendToAPI(transcript);
     }
