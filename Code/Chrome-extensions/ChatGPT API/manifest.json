@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Cheatr.AI",
+  "version":  "1.7",
+  "description": "Use ChatGPT to answer test questions quickly",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://vision.googleapis.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["popup.js"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'",
+    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self'; worker-src blob: 'self'"
+  },
+  "sandbox": {
+    "pages": ["sandbox.html"]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "config.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "YT Addiction Destroyer",
+    "version": "2.1",
+    "description": "You'll never touch YouTube again.",
+    "icons": {
+        "16": "Anti-YouTube.png",
+        "48": "Anti-YouTube.png",
+        "128": "Anti-YouTube.png"
+    },
+    "content_scripts": [
+        {
+            "matches": ["*://*.youtube.com/*"],
+            "js": ["content.js"],
+            "css": ["styles.css"]
+        }
+    ]
+}

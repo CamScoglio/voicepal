@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OCR Sandbox</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+        }
+        #status {
+            margin: 10px 0;
+            color: #666;
+        }
+        .loader {
+            display: none;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #4CAF50;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Ready</div>
+    <div class="loader"></div>
+    
+    <script>
+        // Load the config file
+        const script = document.createElement('script');
+        script.src = 'config.js';
+        document.head.appendChild(script);
+        
+        // Function to update progress and notify parent
+        function updateProgress(message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            
+            // Send progress update to parent
+            window.parent.postMessage({
+                action: 'ocrProgress',
+                status: message
+            }, '*');
+        }
+        
+        // Listen for messages from the parent (popup.html)
+        window.addEventListener('message', async function(event) {
+            if (event.data.action === 'performOCR') {
+                const statusDiv = document.getElementById('status');
+                const loader = document.querySelector('.loader');
+                
+                try {
+                    updateProgress('Initializing OCR process...');
+                    loader.style.display = 'block';
+                    
+                    // Small delay to show initialization message
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    updateProgress('Preparing image for processing...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    updateProgress('Sending image to Google Cloud Vision API...');
+                    // Use Google Cloud Vision API
+                    const result = await performCloudVisionOCR(event.data.imageData);
+                    
+                    updateProgress('Processing API response...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Send result back to parent
+                    window.parent.postMessage({
+                        action: 'ocrResult',
+                        success: true,
+                        text: result
+                    }, '*');
+                    
+                    statusDiv.textContent = 'OCR completed successfully';
+                } catch (error) {
+                    console.error('OCR Error:', error);
+                    
+                    // Send error back to parent
+                    window.parent.postMessage({
+                        action: 'ocrResult',
+                        success: false,
+                        error: error.message
+                    }, '*');
+                    
+                    statusDiv.textContent = 'OCR failed: ' + error.message;
+                } finally {
+                    loader.style.display = 'none';
+                }
+            } else if (event.data.action === 'performChatGPT') {
+                const statusDiv = document.getElementById('status');
+                const loader = document.querySelector('.loader');
+                
+                try {
+                    statusDiv.textContent = 'Processing ChatGPT request...';
+                    loader.style.display = 'block';
+                    
+                    console.log(`Starting ${event.data.stage} stage with ChatGPT`);
+                    const response = await callChatGPTAPI(event.data.text, event.data.prompt);
+                    console.log(`${event.data.stage} stage completed successfully`);
+                    
+                    // Send result back to parent
+                    window.parent.postMessage({
+                        action: 'chatgptResult',
+                        success: true,
+                        response: response,
+                        stage: event.data.stage // Pass along the stage identifier
+                    }, '*');
+                    
+                    statusDiv.textContent = 'ChatGPT request completed successfully';
+                } catch (error) {
+                    console.error(`ChatGPT Error (${event.data.stage} stage):`, error);
+                    
+                    // Send error back to parent
+                    window.parent.postMessage({
+                        action: 'chatgptResult',
+                        success: false,
+                        error: error.message,
+                        stage: event.data.stage // Pass along the stage identifier
+                    }, '*');
+                    
+                    statusDiv.textContent = 'ChatGPT request failed: ' + error.message;
+                } finally {
+                    loader.style.display = 'none';
+                }
+            }
+        });
+        
+        // Perform OCR using Google Cloud Vision API
+        async function performCloudVisionOCR(imageBase64) {
+            try {
+                // Get API key from config
+                const apiKey = config.googleCloudVisionApiKey;
+                
+                if (!apiKey || apiKey.trim() === '') {
+                    throw new Error('API key is missing or invalid');
+                }
+                
+                updateProgress('Preparing API request...');
+                
+                const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
+                
+                // Prepare the request body
+                const requestBody = {
+                    requests: [{
+                        image: {
+                            content: imageBase64.split(',')[1] // Remove the data:image/jpeg;base64, part
+                        },
+                        features: [{
+                            type: 'TEXT_DETECTION',
+                            maxResults: config.maxResults || 1
+                        }],
+                        imageContext: {
+                            languageHints: [config.ocrLanguage || 'en']
+                        }
+                    }]
+                };
+                
+                updateProgress('Sending request to Google Cloud Vision API...');
+                
+                // Add timeout to your fetch request
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
+                // Make the API request
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: JSON.stringify(requestBody),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                updateProgress('Processing API response...');
+                
+                // Parse the response
+                const data = await response.json();
+                
+                // Check for errors
+                if (data.error) {
+                    throw new Error(`API Error: ${data.error.message}`);
+                }
+                
+                // Extract the text
+                if (data.responses && 
+                    data.responses[0] && 
+                    data.responses[0].textAnnotations && 
+                    data.responses[0].textAnnotations[0]) {
+                    return data.responses[0].textAnnotations[0].description;
+                } else {
+                    return "No text detected in the image.";
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timed out after 30 seconds');
+                }
+                console.error('Detailed OCR Error:', error.name, error.message, error.stack);
+                throw new Error(`OCR failed: ${error.name} - ${error.message}`);
+            }
+        }
+        
+        // Call ChatGPT API
+        async function callChatGPTAPI(text, prompt) {
+            try {
+                // Get API key from config
+                const apiKey = config.openaiApiKey || config.deepseekApiKey;
+                
+                console.log("API call starting with text length:", text.length);
+                console.log("Using prompt:", prompt);
+                console.log("API key available:", !!apiKey);
+                
+                if (!apiKey || apiKey.trim() === '') {
+                    throw new Error('API key is missing or invalid');
+                }
+                
+                const url = 'https://api.openai.com/v1/chat/completions';
+                console.log("Making request to:", url);
+                
+                // Prepare the request body
+                const requestBody = {
+                    model: config.openaiModel || 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful assistant that analyzes text from images.'
+                        },
+                        {
+                            role: 'user',
+                            content: `Here is the text extracted from an image:\n\n${text}\n\n${prompt}`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000
+                };
+                
+                console.log("Using model:", requestBody.model);
+                
+                // Set up timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+                
+                try {
+                    console.log("Sending API request...");
+                    // Make the API request
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: JSON.stringify(requestBody),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    console.log("API response received, status:", response.status);
+                    
+                    // Check for rate limiting
+                    if (response.status === 429) {
+                        throw new Error('API rate limit exceeded. Please try again later.');
+                    }
+                    
+                    // Check for other HTTP errors
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error("API error response:", errorText);
+                        throw new Error(`API Error: ${response.status} - ${errorText}`);
+                    }
+                    
+                    // Parse the response
+                    const data = await response.json();
+                    console.log("API response parsed successfully");
+                    
+                    // Check for errors
+                    if (data.error) {
+                        console.error("API returned error:", data.error);
+                        throw new Error(`API Error: ${data.error.message || JSON.stringify(data.error)}`);
+                    }
+                    
+                    // Extract the response text
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const responseText = data.choices[0].message.content;
+                        console.log("Successfully extracted response text, length:", responseText.length);
+                        return responseText;
+                    } else {
+                        console.error("Unexpected API response format:", data);
+                        return "No response from API. Please try again.";
+                    }
+                } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    if (fetchError.name === 'AbortError') {
+                        console.error("Request timed out after 25 seconds");
+                        throw new Error('Request timed out after 25 seconds. Please try again.');
+                    }
+                    throw fetchError;
+                }
+            } catch (error) {
+                console.error('Detailed API Error:', error.name, error.message, error.stack);
+                throw error;
+            }
+        }
+        
+        // Notify parent that sandbox is ready
+        window.parent.postMessage({ action: 'sandboxReady' }, '*');
+    </script>
+</body>
+</html> 

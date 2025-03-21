@@ -1,0 +1,65 @@
+/* Target the yt-image element to override its appearance */
+/* Target YouTube image elements to override their appearance */
+/* yt-image {
+    background-image: url('https://upload.wikimedia.org/wikipedia/commons/4/49/A_black_image.jpg') !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    /* Hide any built-in image by setting opacity */
+    /* opacity: 0.0;
+} */
+
+/* Add a pseudo-element to show the replacement black image */
+/* yt-image::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('https://upload.wikimedia.org/wikipedia/commons/4/49/A_black_image.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 1 !important;
+    pointer-events: none;
+} */
+
+/* Target long-form video thumbnails specifically */
+ytd-thumbnail img,
+ytd-compact-video-renderer img,
+ytd-grid-video-renderer img,
+ytd-video-renderer img,
+ytd-rich-item-renderer:not([is-short]) img,
+.ytd-rich-grid-media img,
+.ytp-videowall-still img,
+#thumbnail img {
+    background-color: #000000 !important;
+    content: url('https://upload.wikimedia.org/wikipedia/commons/4/49/A_black_image.jpg') !important;
+    object-fit: cover !important;
+}
+
+/* Target YouTube Shorts thumbnails specifically */
+ytd-rich-grid-slim-media img, 
+ytd-rich-section-renderer img, 
+ytd-shorts img,
+ytd-shorts-video-renderer img,
+.ytd-rich-grid-slim-media img,
+.ytd-rich-section-renderer img,
+.ytd-shorts img,
+.ytd-shorts-video-renderer img,
+.ytp-videowall-still-image {
+    background-color: #000000 !important;
+    content: url('https://upload.wikimedia.org/wikipedia/commons/4/49/A_black_image.jpg') !important;
+    object-fit: cover !important;
+}
+
+/* Target the shorts container to ensure all images are covered */
+#shorts-container img,
+ytd-reel-shelf-renderer img,
+ytd-shorts-shelf-renderer img {
+    background-color: #000000 !important;
+    content: url('https://upload.wikimedia.org/wikipedia/commons/4/49/A_black_image.jpg') !important;
+    object-fit: cover !important;
+}
+
+ 
+  
